@@ -57,6 +57,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package.json ./
 COPY src ./src
 COPY migrations ./migrations
+RUN mkdir -p /app/uploads && chown appuser:appgroup /app/uploads
 COPY seeds ./seeds
 
 # Remove dev dependencies that might have leaked
