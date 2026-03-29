@@ -41,10 +41,10 @@ CMD ["npx", "vite", "--host", "0.0.0.0", "--port", "5173"]
 # ---------------------------------------------------------------------------
 FROM base AS build
 
-ARG VITE_API_URL=/api
-ARG VITE_WS_URL=
+ARG VITE_API_URL
+ARG VITE_WS_URL
 
-ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_API_URL=${VITE_API_URL:-/api/v1}
 ENV VITE_WS_URL=${VITE_WS_URL}
 
 COPY --from=deps /app/node_modules ./node_modules
