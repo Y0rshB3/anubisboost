@@ -167,6 +167,27 @@ async function start() {
     const knex = require("./db/knex");
     await knex.raw("SELECT 1");
     logger.info("MySQL connected");
+
+    // Auto-run migrations on startup
+    try {
+      const fs = require("fs");
+      const schemaPath = path.join(__dirname, "../migrations/001_initial_schema.sql");
+      if (fs.existsSync(schemaPath)) {
+        const sql = fs.readFileSync(schemaPath, "utf8");
+        const statements = sql.split(";").filter(s => s.trim());
+        for (const stmt of statements) {
+          await knex.raw(stmt).catch(() => {});
+        }
+        logger.info("Base schema applied");
+      }
+      // Extra migrations
+      const migrateProdPath = path.join(__dirname, "../scripts/migrate-prod.js");
+      if (fs.existsSync(migrateProdPath)) {
+        await require(migrateProdPath.replace('.js', '-fn'))().catch(() => {});
+      }
+    } catch (migErr) {
+      logger.warn({ err: migErr }, "Migration warning (non-fatal)");
+    }
   } catch (err) {
     logger.error({ err }, "MySQL connection failed — will retry via pool");
   }
