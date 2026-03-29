@@ -48,6 +48,7 @@ const isProd = NODE_ENV === "production";
 const logger = pino({ level: isProd ? "info" : "debug", transport: isProd ? undefined : { target: "pino-pretty" } });
 
 const app = express();
+app.set("trust proxy", 1);
 const server = http.createServer(app);
 
 // Global middleware
