@@ -1,0 +1,9 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[build.args]
+TARGET = "production"
+
+[deploy]
+healthcheckPath = "/"
