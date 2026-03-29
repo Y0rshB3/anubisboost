@@ -59,6 +59,7 @@ COPY src ./src
 COPY migrations ./migrations
 RUN mkdir -p /app/uploads && chown appuser:appgroup /app/uploads
 COPY seeds ./seeds
+COPY scripts ./scripts
 
 # Remove dev dependencies that might have leaked
 RUN npm prune --production 2>/dev/null; exit 0
