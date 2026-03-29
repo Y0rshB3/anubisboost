@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.production
+.env.local
+.env.*.local
+
+# Build output
+dist/
+build/
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes (local data)
+backups/
+
+# Nginx generated configs
+nginx/nginx-resolved.conf
+nginx/nginx-active.conf
+nginx/nginx-temp.conf
+nginx/conf.d/temp-*.conf
+
+# Lock files are committed (needed for reproducible builds)
+# !package-lock.json

@@ -1,0 +1,159 @@
+# =============================================================================
+# AnubisBoost - Development Docker Compose
+# =============================================================================
+# Usage:
+#   docker compose up          — start all services
+#   docker compose up -d       — start detached
+#   docker compose down -v     — stop and remove volumes (clean slate)
+#   docker compose logs -f api — follow backend logs
+
+name: anubisboost-dev
+
+services:
+  # ---------------------------------------------------------------------------
+  # Backend API (Node.js + Express + Socket.io)
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    container_name: ab-api-dev
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: development
+      MYSQL_HOST: mysql
+      REDIS_HOST: redis
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    volumes:
+      - ./backend/src:/app/src:delegated
+      - ./backend/migrations:/app/migrations:delegated
+      - ./backend/seeds:/app/seeds:delegated
+      - ./backend/uploads:/app/uploads:delegated
+      - ./backend/package.json:/app/package.json
+      # Avoid overwriting node_modules inside the container
+      - api_node_modules:/app/node_modules
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>{if(!r.ok)throw 1})"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - anubisboost
+
+  # ---------------------------------------------------------------------------
+  # Frontend (Vue 3 + Vite dev server)
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: ab-frontend-dev
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost:${APP_PORT:-3000}/api
+      VITE_WS_URL: http://localhost:${APP_PORT:-3000}
+    ports:
+      - "${VITE_PORT:-5173}:5173"
+    volumes:
+      - ./frontend/src:/app/src:delegated
+      - ./frontend/public:/app/public:delegated
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/vite.config.js:/app/vite.config.js
+      - ./frontend/postcss.config.js:/app/postcss.config.js
+      - ./frontend/tailwind.config.js:/app/tailwind.config.js
+      - ./frontend/package.json:/app/package.json
+      # Avoid overwriting node_modules inside the container
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - anubisboost
+
+  # ---------------------------------------------------------------------------
+  # MySQL 8
+  # ---------------------------------------------------------------------------
+  mysql:
+    image: mysql:8.0.36
+    container_name: ab-mysql-dev
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-changeme_root_dev_only}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-anubisboost}
+      MYSQL_USER: ${MYSQL_USER:-anubisboost}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-changeme_dev_only}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/migrations:/docker-entrypoint-initdb.d:ro
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --sql-mode=STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-changeme_root_dev_only}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - anubisboost
+
+  # ---------------------------------------------------------------------------
+  # Redis 7
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7.2-alpine
+    container_name: ab-redis-dev
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - anubisboost
+
+  # ---------------------------------------------------------------------------
+  # Adminer (DB inspection tool) — dev only
+  # ---------------------------------------------------------------------------
+  adminer:
+    image: adminer:4.8.1
+    container_name: ab-adminer-dev
+    restart: unless-stopped
+    ports:
+      - "8888:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: mysql
+      ADMINER_DESIGN: dracula
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - anubisboost
+
+volumes:
+  mysql_data:
+  redis_data:
+  api_node_modules:
+  frontend_node_modules:
+
+networks:
+  anubisboost:
+    driver: bridge
